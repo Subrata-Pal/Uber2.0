@@ -9,6 +9,10 @@ import VehicleSearchPanel from "../components/VehicleSearchPanel";
 import LookingPanel from "../components/LookingPanel";
 import DriverPanel from "../components/DriverPanel";
 import ConfirmPanel from "../components/ConfirmPanel";
+import axios from "axios"
+import { API_URL_MAPS, API_URL_RIDES } from "../utils/constants";
+import  {useDispatch} from "react-redux"
+import { setCreateRide } from "../features/userSlice";
 
 const UserHomePage = () => {
   gsap.registerPlugin(useGSAP);
@@ -29,9 +33,42 @@ const UserHomePage = () => {
   const [driverPanel, setDriverPanel] = useState(false);
   const driverPanelRef = useRef(null);
 
-  const handleChange = (e) => {
+  const [suggestions, setSuggestions] = useState([]);
+  const [ activeField, setActiveField ] = useState(null)
+
+  const dispatch = useDispatch();
+
+  
+
+  const token = localStorage.getItem("token");
+
+  const handleChange = async(e) => {
     e.preventDefault();
     console.log(pickup, dropoff);
+    setVehiclePanel(true);
+
+    try{
+      const res = await axios.get(`${API_URL_RIDES}/get-fare`, {params: {
+        pickup,
+        destination: dropoff,
+      },
+      headers : {
+        Authorization: `bearer ${JSON.parse(token)}`,
+
+        'Content-Type': 'application/json', // Specify content type
+    } });
+
+      const fare = res.data.fare;
+      dispatch(setCreateRide({fare}))
+
+      setToggle(false);
+      setPickup("");
+      setDropoff("");
+  }
+  catch(error)
+  {
+    console.log(error)
+  }
   };
 
   useGSAP(() => {
@@ -116,6 +153,70 @@ const UserHomePage = () => {
       });
     }
   }, [driverPanel]);
+
+
+  async function pickUpOnChangeHandler(e)
+  {
+    setPickup(e.target.value);
+
+    try{
+
+      if(e.target.value.length > 3)
+      {
+      const response = await axios.get(`${API_URL_MAPS}/get-suggestions`,{
+        params:{
+          input:e.target.value
+        },
+        headers: {
+          Authorization: `bearer ${JSON.parse(token)}`,
+
+          'Content-Type': 'application/json', // Specify content type
+      },
+      })
+      setSuggestions(response.data);
+      }
+      else
+      {
+        setSuggestions([])
+      }
+    }
+    catch(error)
+    {
+      console.log(error);
+    }
+  }
+
+  async function dropOffChangeHandler(e)
+  {
+    setDropoff(e.target.value)
+
+    try{
+
+      if(e.target.value.length > 3)
+      {
+        
+      const response = await axios.get(`${API_URL_MAPS}/get-suggestions`,{
+        params:{
+          input:e.target.value
+        },
+        headers: {
+          Authorization: `bearer ${JSON.parse(token)}`,
+           'Content-Type': 'application/json', // Specify content type
+      },
+      })
+      setSuggestions(response.data);
+      }
+      else
+      {
+        setSuggestions([])
+      }
+    }
+    catch(error)
+    {
+      console.log(error);
+    }
+
+  }
   
 
   return (
@@ -148,24 +249,31 @@ const UserHomePage = () => {
             >
               <input
                 className="w-full p-4 rounded-md bg-gray-300 placeholder:text-gray-600 placeholder:text-sm"
-                onClick={() => setToggle(true)}
+                onClick={() => {setToggle(true);
+                  setActiveField('pickup')}
+                }
                 type="text"
                 name="pickup"
                 id="pickup"
                 value={pickup}
-                onChange={(e) => setPickup(e.target.value)}
+                onChange={pickUpOnChangeHandler}
                 placeholder="Add a Pickup Location"
+                required
               />
               <input
                 className="w-full p-4 rounded-md bg-gray-300 placeholder:text-gray-600 placeholder:text-sm"
-                onClick={() => setToggle(true)}
+                onClick={() =>{ setToggle(true);
+                  setActiveField('destination')
+                }}
                 type="text"
                 name="dropoff"
                 id="dropoff"
                 value={dropoff}
-                onChange={(e) => setDropoff(e.target.value)}
+                onChange={dropOffChangeHandler}
                 placeholder="Add a Dropoff Location"
+                required
               />
+              <button type="submit" className="bg-black p-2 rounded-lg text-white">Search</button>
             </form>
           </div>
         </div>
@@ -177,6 +285,11 @@ const UserHomePage = () => {
             <LocationSearchPanel
               setToggle={setToggle}
               setVehiclePanel={setVehiclePanel}
+              suggestions={suggestions}
+              setPickup={setPickup}
+              setSuggestions={setSuggestions}
+              setDropoff={setDropoff}
+              activeField={activeField}
             />
           </div>
 
@@ -199,6 +312,8 @@ const UserHomePage = () => {
             <LookingPanel
               setLookingPanel={setLookingPanel}
               setVehiclePanel={setVehiclePanel}
+              setDriverPanel= {setDriverPanel}
+              setConfirmPanel={setConfirmPanel}
             />
           </div>
 
@@ -213,7 +328,7 @@ const UserHomePage = () => {
             ref={confirmPanelRef}
             className="z-10 translate-y-full  fixed bottom-0 bg-white pt-2 pb-10 border-gray-400 rounded-t-2xl"
           >
-            <ConfirmPanel setConfirmPanel={setConfirmPanel}  setDriverPanel= {setDriverPanel} setLookingPanel={setLookingPanel} setVehiclePanel={setVehiclePanel}/>
+            <ConfirmPanel setConfirmPanel={setConfirmPanel}  setDriverPanel= {setDriverPanel} setLookingPanel={setLookingPanel} setVehiclePanel={setVehiclePanel} />
           </div>
 
         </div>
